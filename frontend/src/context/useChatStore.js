@@ -78,7 +78,7 @@ export const useChatStore = create(persist((set, get) => ({
             }
             return c;
           });
-          // If 1-on-1 doesn't exist in conversations array yet, we'd need to refetch, but let's just do a blind refetch for simplicity on send
+       
           return { messages: [...state.messages, updatedMsg], replyingTo: null, conversations: updatedConvos };
         });
       return true;
@@ -103,6 +103,16 @@ export const useChatStore = create(persist((set, get) => ({
     const socket = useSocketStore.getState().socket;
     if (!socket) return;
 
+        socket.on("message_updated", (updatedData) => {
+      set((state) => ({
+        messages: state.messages.map((msg) => 
+          msg._id === updatedData.messageId 
+            ? { ...msg, ...updatedData.changes } 
+            : msg
+        )
+      }));
+    });
+
     socket.on("receive_message", (newMessage) => {
       const { selectedUser, incrementUnread } = get();
       
@@ -126,7 +136,7 @@ export const useChatStore = create(persist((set, get) => ({
           }
           return c;
         });
-        return { conversations: updatedConvos };
+        return { conversations: updatedConvos};
       });
     });
   },
@@ -137,8 +147,34 @@ export const useChatStore = create(persist((set, get) => ({
     socket.off("receive_message");
   },
 
+  
   setSelectedUser: (user) => set({ selectedUser: user, replyingTo: null }),
   setReplyingTo: (message) => set({ replyingTo: message }),
+  
+  togglePinMessage: async (messageId) => {
+    try {
+      const res = await axiosInstance.put(`/messages/${messageId}/pin`);
+      
+      // Safety check
+      const pinnedState = res?.data?.data?.isPinned || false;
+      
+      set((state) => ({
+        messages: state.messages.map((msg) => 
+          msg._id === messageId ? { ...msg, isPinned: pinnedState } : msg
+        )
+      }));
+      
+      if (pinnedState) {
+        toast.success("Message Pinned Successfully!");
+      } else {
+        toast.success("Message Unpinned Successfully!");
+      }
+    } catch (error) {
+      console.error("Pin API Error:", error);
+      const errMsg = error?.response?.data?.message || error.message || "Unknown error";
+      toast.error(`Failed: ${errMsg}`);
+    }
+  },
   setDraft: (userId, text) => set((state) => {
     const drafts = { ...state.drafts };
     if (text) {

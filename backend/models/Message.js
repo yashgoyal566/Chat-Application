@@ -22,6 +22,10 @@ const messageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Message',
       default: null,
+    }, 
+    isPinned: {
+      type: Boolean,
+      default: false,
     },
     readBy: [
       {

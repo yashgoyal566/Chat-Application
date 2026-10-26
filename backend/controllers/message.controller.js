@@ -117,3 +117,47 @@ export const getMessages = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
+
+
+export const togglePinMessage = async (req, res) => {
+  try {
+    console.log("=> TOGGLE PIN API HIT for message:", req.params.id);
+    const { id } = req.params;
+    const message = await Message.findById(id);
+    
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+
+    const newValue = !message.isPinned;
+    // Force the update in DB bypassing schema strict mode in case nodemon didn't restart
+    const updatedMessage = await Message.findByIdAndUpdate(
+      id,
+      { $set: { isPinned: newValue } },
+      { new: true, strict: false }
+    );
+    message.isPinned = newValue;
+    console.log("=> MESSAGE SAVED:", updatedMessage.isPinned);
+
+    // Find the conversation to get the participants
+    const conversation = await Conversation.findById(message.conversation);
+    if (conversation) {
+      conversation.participants.forEach((participantId) => {
+        const socketId = getReceiverSocketId(participantId.toString());
+        if (socketId) {
+          console.log("=> EMITTING TO SOCKET:", socketId);
+          io.to(socketId).emit("message_updated", {
+            messageId: message._id,
+            changes: { isPinned: message.isPinned }
+          });
+        }
+      });
+    }
+
+    res.status(200).json({ success: true, data: message });
+  } catch (error) {
+    console.error("=> ERROR TOGGLING PIN:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
