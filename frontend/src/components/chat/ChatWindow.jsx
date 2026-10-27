@@ -107,35 +107,35 @@ export default function ChatWindow() {
     setContent(localStorage.getItem(`draft_${selectedUser._id}`) || '');
   }, [selectedUser._id]);
 
-  useEffect(() => {
-    const scrollToBottom = (behavior = 'auto') => {
-      if (!messagesContainerRef.current) return;
-      if (behavior === 'auto') {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      } else {
-        messagesContainerRef.current.scrollTo({
-          top: messagesContainerRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-    };
-
-    if (isInitialLoadRef.current) {
-      // Immediately jump to the last message without animation or window shifting
-      scrollToBottom('auto');
-      const timer = setTimeout(() => scrollToBottom('auto'), 50);
-      if (!isMessagesLoading && messages.length > 0) {
-        isInitialLoadRef.current = false;
-      }
-      return () => clearTimeout(timer);
-    } else {
-      // Only smooth scroll when a new message is received or sent
-      if (messages.length > prevMessagesLengthRef.current) {
-        scrollToBottom('smooth');
-      }
+  const scrollToBottom = (behavior = 'auto') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-    prevMessagesLengthRef.current = messages.length;
-  }, [messages, isMessagesLoading]);
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    }
+  };
+
+  // Ensure chat is always positioned at the latest / current messages
+  useEffect(() => {
+    if (!isMessagesLoading && messages.length > 0) {
+      scrollToBottom('auto');
+      const t1 = setTimeout(() => scrollToBottom('auto'), 60);
+      const t2 = setTimeout(() => scrollToBottom('auto'), 250);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [selectedUser?._id, messages.length, isMessagesLoading]);
+
+  // Keep latest message in view when typing or focusing input
+  useEffect(() => {
+    if (isInputFocused) {
+      const t = setTimeout(() => scrollToBottom('auto'), 150);
+      return () => clearTimeout(t);
+    }
+  }, [isInputFocused]);
 
   useEffect(() => {
     if (replyingTo && messageInputRef.current) {
