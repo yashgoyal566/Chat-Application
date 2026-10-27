@@ -118,13 +118,25 @@ export default function ChatWindow() {
     }
   }, [replyingTo]);
 
+  const typingTimeoutRef = useRef(null);
+
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !selectedUser?._id) return;
+    let autoClearTimer = null;
+
     const handleTyping = (data) => {
-      if (data.senderId === selectedUser._id) setIsTyping(true);
+      if (data.senderId?.toString() === selectedUser?._id?.toString()) {
+        setIsTyping(true);
+        if (autoClearTimer) clearTimeout(autoClearTimer);
+        autoClearTimer = setTimeout(() => setIsTyping(false), 3000);
+      }
     };
+
     const handleStopTyping = (data) => {
-      if (data.senderId === selectedUser._id) setIsTyping(false);
+      if (data.senderId?.toString() === selectedUser?._id?.toString()) {
+        setIsTyping(false);
+        if (autoClearTimer) clearTimeout(autoClearTimer);
+      }
     };
 
     socket.on('typing', handleTyping);
@@ -133,10 +145,10 @@ export default function ChatWindow() {
     return () => {
       socket.off('typing', handleTyping);
       socket.off('stop_typing', handleStopTyping);
+      if (autoClearTimer) clearTimeout(autoClearTimer);
     };
-  }, [socket, selectedUser]);
+  }, [socket, selectedUser?._id]);
 
-  let typingTimeout = null;
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -147,12 +159,12 @@ export default function ChatWindow() {
   const handleInputChange = (e) => {
     const text = e.currentTarget.innerHTML;
     setContent(text);
-    if (!socket) return;
+    if (!socket || !selectedUser?._id) return;
     
     socket.emit('typing', { receiverId: selectedUser._id });
-    if (typingTimeout) clearTimeout(typingTimeout);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     
-    typingTimeout = setTimeout(() => {
+    typingTimeoutRef.current = setTimeout(() => {
       socket.emit('stop_typing', { receiverId: selectedUser._id });
     }, 2000);
   };

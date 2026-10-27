@@ -67,25 +67,29 @@ export const sendMessage = async (req, res) => {
       conversationType: conversation.isGroup ? 'group' : 'direct',
     };
 
-    const targetSocketIds = new Set();
+    const targetIds = new Set();
     
     if (conversation.participants && conversation.participants.length > 0) {
       conversation.participants.forEach(participantId => {
         const pIdStr = (participantId._id || participantId).toString();
         if (pIdStr !== senderId.toString()) {
-          const socketId = getReceiverSocketId(pIdStr);
-          if (socketId) targetSocketIds.add(socketId);
+          targetIds.add(pIdStr);
         }
       });
     }
 
     if (!conversation.isGroup && receiverId && receiverId.toString() !== senderId.toString()) {
-      const directSocketId = getReceiverSocketId(receiverId.toString());
-      if (directSocketId) targetSocketIds.add(directSocketId);
+      targetIds.add(receiverId.toString());
     }
 
-    targetSocketIds.forEach(socketId => {
-      io.to(socketId).emit('receive_message', messagePayload);
+    targetIds.forEach(targetId => {
+      // Direct emit to the user's room!
+      io.to(targetId).emit('receive_message', messagePayload);
+      // Fallback emit to any specific socket ID
+      const directSocketId = getReceiverSocketId(targetId);
+      if (directSocketId) {
+        io.to(directSocketId).emit('receive_message', messagePayload);
+      }
     });
 
     res.status(201).json({ success: true, data: newMessage });

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { io } from 'socket.io-client';
 import { useAuthStore } from './useAuthStore';
+import { useChatStore } from './useChatStore';
 
 export const useSocketStore = create((set, get) => ({
   socket: null,
@@ -33,12 +34,20 @@ export const useSocketStore = create((set, get) => ({
       query: { userId: authUser._id },
       transports: ['websocket', 'polling'],
       withCredentials: true,
-      reconnectionAttempts: 10,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     socket.on('connect', () => {
       console.log('Socket connected successfully:', socket.id);
+      useChatStore.getState().listenToMessages();
+    });
+
+    socket.io?.on('reconnect', () => {
+      console.log('Socket reconnected successfully:', socket.id);
+      useChatStore.getState().listenToMessages();
     });
 
     socket.on('getOnlineUsers', (users) => {
