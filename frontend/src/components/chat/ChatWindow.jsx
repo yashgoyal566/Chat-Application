@@ -87,7 +87,8 @@ export default function ChatWindow() {
   const [currentPinIndex, setCurrentPinIndex] = useState(0);
   const [highlightedMsgId, setHighlightedMsgId] = useState(null);
   const messagesEndRef = useRef(null);
-
+  const messagesContainerRef = useRef(null);
+  const isInitialLoadRef = useRef(true);
   const prevMessagesLengthRef = useRef(0);
   
   const messageInputRef = useRef(null);
@@ -95,6 +96,8 @@ export default function ChatWindow() {
 
     // Fetch history when user changes
   useEffect(() => {
+    isInitialLoadRef.current = true;
+    prevMessagesLengthRef.current = 0;
     getMessages(selectedUser._id);
   }, [selectedUser._id, getMessages]);
 
@@ -105,12 +108,34 @@ export default function ChatWindow() {
   }, [selectedUser._id]);
 
   useEffect(() => {
-    if (messages.length !== prevMessagesLengthRef.current) {
-      const isNewMessage = messages.length === prevMessagesLengthRef.current + 1;
-      messagesEndRef.current?.scrollIntoView({ behavior: isNewMessage ? 'smooth' : 'auto' });
-      prevMessagesLengthRef.current = messages.length;
+    const scrollToBottom = (behavior = 'auto') => {
+      if (!messagesContainerRef.current) return;
+      if (behavior === 'auto') {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      } else {
+        messagesContainerRef.current.scrollTo({
+          top: messagesContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    if (isInitialLoadRef.current) {
+      // Immediately jump to the last message without animation or window shifting
+      scrollToBottom('auto');
+      const timer = setTimeout(() => scrollToBottom('auto'), 50);
+      if (!isMessagesLoading && messages.length > 0) {
+        isInitialLoadRef.current = false;
+      }
+      return () => clearTimeout(timer);
+    } else {
+      // Only smooth scroll when a new message is received or sent
+      if (messages.length > prevMessagesLengthRef.current) {
+        scrollToBottom('smooth');
+      }
     }
-  }, [messages.length]);
+    prevMessagesLengthRef.current = messages.length;
+  }, [messages, isMessagesLoading]);
 
   useEffect(() => {
     if (replyingTo && messageInputRef.current) {
@@ -342,7 +367,7 @@ export default function ChatWindow() {
         })()}
 
         {/* Messages Container (pt-16 ensures top messages aren't hidden by absolute banner) */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-16 pb-3">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-16 pb-3">
         {isMessagesLoading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
