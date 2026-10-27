@@ -1,5 +1,4 @@
-﻿import React from 'react';
-﻿import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useChatStore } from '../../context/useChatStore';
 import { useAuthStore } from '../../context/useAuthStore';
 import { useSocketStore } from '../../context/useSocketStore';
@@ -329,7 +328,7 @@ export default function ChatWindow() {
           return (
             <div 
               onClick={handleBannerClick}
-              className="absolute top-0 left-0 right-0 z-20 bg-zinc-50/95 backdrop-blur-sm border-b border-zinc-200 px-6 py-2 shadow-sm dark:bg-zinc-800/80 dark:border-zinc-700 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="shrink-0 z-20 bg-zinc-50/95 backdrop-blur-sm border-b border-zinc-200 px-4 md:px-6 py-2 shadow-xs dark:bg-zinc-800/80 dark:border-zinc-700 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="text-yellow-500">
@@ -366,14 +365,17 @@ export default function ChatWindow() {
           );
         })()}
 
-        {/* Messages Container (pt-16 ensures top messages aren't hidden by absolute banner) */}
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 md:px-6 pt-16 pb-3">
+        {/* Messages Container (Natural padding, spacer anchors messages to bottom when chat is short) */}
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 md:px-6 py-2">
         {isMessagesLoading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
           </div>
         ) : (
-          <div className="flex flex-col gap-4 ">
+          <div className="flex flex-col min-h-full">
+            {/* Spacer pushes messages to the bottom (WhatsApp style) when there are few messages */}
+            <div className="flex-1" />
+            <div className="flex flex-col gap-2">
             {messages.map((msg, index) => {
                 const isMe = (msg.sender._id || msg.sender) === authUser._id;
                 const isHighlighted = highlightedMsgId === msg._id;
@@ -385,8 +387,7 @@ export default function ChatWindow() {
                 } else {
                   const prevDate = new Date(messages[index - 1].createdAt);
                   const currDate = new Date(msg.createdAt);
-                  // 1 hour threshold for new timestamp header
-                  if (currDate - prevDate > 3600000) {
+                  if (prevDate.toDateString() !== currDate.toDateString()) {
                     showDivider = true;
                   }
                 }
@@ -397,21 +398,20 @@ export default function ChatWindow() {
                   const yesterday = new Date(today);
                   yesterday.setDate(yesterday.getDate() - 1);
                   
-                  const timeOpts = { hour: 'numeric', minute: '2-digit' };
                   if (date.toDateString() === today.toDateString()) {
-                    timeString = `Today ${date.toLocaleTimeString([], timeOpts)}`;
+                    timeString = 'Today';
                   } else if (date.toDateString() === yesterday.toDateString()) {
-                    timeString = `Yesterday ${date.toLocaleTimeString([], timeOpts)}`;
+                    timeString = 'Yesterday';
                   } else {
-                    timeString = `${date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at ${date.toLocaleTimeString([], timeOpts)}`;
+                    timeString = date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
                   }
                 }
                 
                 return (
                   <React.Fragment key={msg._id || index}>
                     {showDivider && (
-                      <div className="flex justify-center my-4">
-                        <span className="text-[11px] font-semibold text-[#8E8E93]">
+                      <div className="flex justify-center my-2">
+                        <span className="bg-white/90 dark:bg-zinc-800/90 text-zinc-600 dark:text-zinc-300 text-[11px] font-medium px-2.5 py-1 rounded-md shadow-xs border border-zinc-200/60 dark:border-zinc-700/60 select-none uppercase tracking-wider">
                           {timeString}
                         </span>
                       </div>
@@ -420,11 +420,11 @@ export default function ChatWindow() {
                       id={`msg-${msg._id}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`group flex w-full mb-3 ${isMe ? 'justify-end' : 'justify-start'}`}
+                      className={`group flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}
                     >
                       
                       
-                      <div className={`flex items-end min-w-0 max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div className={`flex items-end min-w-0 max-w-[85%] sm:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                         
                         {/* Avatar (Only for incoming) */}
                         {!isMe && (
@@ -451,7 +451,7 @@ export default function ChatWindow() {
 
                           {/* Actual Bubble */}
                           <div
-                            className={`relative flex flex-col w-fit max-w-full rounded-[25px] px-[16px] py-[10px] text-[15px] leading-[1.3] ${
+                            className={`relative flex flex-col w-fit max-w-full rounded-[18px] px-3.5 py-2 text-[14px] leading-snug ${
                               isHighlighted ? 'ring-2 ring-brand-primary ring-offset-2' : ''
                             } ${
                               isMe
@@ -532,7 +532,8 @@ export default function ChatWindow() {
                 </div>
               </div>
             )}
-            <div /><div ref={messagesEndRef} />
+            <div ref={messagesEndRef} />
+            </div>
           </div>
         )}
       </div>
