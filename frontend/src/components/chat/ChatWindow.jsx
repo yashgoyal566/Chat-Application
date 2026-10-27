@@ -3,7 +3,7 @@
 import { useChatStore } from '../../context/useChatStore';
 import { useAuthStore } from '../../context/useAuthStore';
 import { useSocketStore } from '../../context/useSocketStore';
-import { Send, Loader2, X, Reply, Bold, Italic, Underline, Smile, Paperclip, Mic, ArrowUp, Pin } from 'lucide-react';
+import { Send, Loader2, X, Reply, Bold, Italic, Underline, Smile, Paperclip, Mic, ArrowUp, Pin, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import ContactInfo from './ContactInfo';
@@ -46,7 +46,7 @@ const getPreviewText = (html) => {
 };
 
 export default function ChatWindow() {
-  const { messages, getMessages, sendMessage, selectedUser, isMessagesLoading, listenToMessages, stopListeningToMessages, replyingTo, setReplyingTo, togglePinMessage, drafts = {}, setDraft } = useChatStore();
+  const { setSelectedUser, messages, getMessages, sendMessage, selectedUser, isMessagesLoading, listenToMessages, stopListeningToMessages, replyingTo, setReplyingTo, togglePinMessage, drafts = {}, setDraft } = useChatStore();
   const { socket } = useSocketStore();
   const { authUser } = useAuthStore();
   const { onlineUsers } = useSocketStore();
@@ -211,7 +211,7 @@ export default function ChatWindow() {
   const isOnline = selectedUser.isGroup ? false : onlineUsers.includes(selectedUser._id);
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
+    <div className="relative flex h-full w-full overflow-hidden">
       <div 
         className="relative flex flex-1 h-full flex-col dark:bg-zinc-900"
       style={{
@@ -222,7 +222,19 @@ export default function ChatWindow() {
       }}
     >
       {/* Header */}
-      <header onClick={() => setShowProfilePane(!showProfilePane)} className="flex shrink-0 items-center gap-3 border-b border-zinc-200 bg-white/80 px-6 py-4 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 cursor-pointer hover:bg-white/90 transition-colors">
+      <header className="flex shrink-0 items-center gap-3 border-b border-zinc-200 bg-white/80 px-4 py-3 md:px-6 md:py-4 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 transition-colors">
+        {/* Mobile Back Button */}
+        <button 
+          onClick={() => setSelectedUser(null)}
+          className="md:hidden p-2 -ml-2 mr-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 transition-colors"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        
+        <div 
+          onClick={() => setShowProfilePane(!showProfilePane)} 
+          className="flex flex-1 items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+        >
         <div className="relative h-10 w-10 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-700">
           {selectedUser.isGroup ? (
             <div className="flex h-full w-full items-center justify-center font-medium text-zinc-500">G</div>
@@ -242,6 +254,7 @@ export default function ChatWindow() {
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {selectedUser.isGroup ? 'Group Chat' : isOnline ? 'Online' : 'Offline'}
           </p>
+        </div>
         </div>
       </header>
 
@@ -317,7 +330,7 @@ export default function ChatWindow() {
         })()}
 
         {/* Messages Container (pt-16 ensures top messages aren't hidden by absolute banner) */}
-        <div className="flex-1 overflow-y-auto px-6 pt-16 pb-[140px] ">
+        <div className="flex-1 overflow-y-auto px-6 pt-16 pb-24 ">
         {isMessagesLoading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
@@ -482,7 +495,7 @@ export default function ChatWindow() {
                 </div>
               </div>
             )}
-            <div className="h-[120px] shrink-0 pointer-events-none" /><div ref={messagesEndRef} />
+            <div /><div ref={messagesEndRef} />
           </div>
         )}
       </div>

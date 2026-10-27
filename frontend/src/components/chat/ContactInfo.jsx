@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSocketStore } from '../../context/useSocketStore';
-import { X, Link as LinkIcon,Reply ,Image as ImageIcon } from 'lucide-react';
+import { X, ArrowLeft, Link as LinkIcon,Reply ,Image as ImageIcon } from 'lucide-react';
 import { useChatStore } from '../../context/useChatStore';
 import {useState,useEffect} from 'react';
 
@@ -13,13 +13,27 @@ export default function ContactInfo({ user, onClose ,onReplyClick}) {
   if (!user) return null;
 
   return (
-    <aside className="flex w-[340px] shrink-0 flex-col border-l border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 transition-all duration-300 animate-in slide-in-from-right-10 overflow-y-auto">
+   <aside className="absolute inset-0 z-40 flex w-full h-full flex-col bg-white dark:bg-zinc-950 overflow-y-auto xl:relative xl:inset-auto xl:z-0 xl:w-[360px] xl:shrink-0 xl:border-l xl:border-zinc-200 dark:xl:border-zinc-800 transition-all duration-300 animate-in slide-in-from-right-10">
       
       {/* Header */}
-      <div className="flex h-[72px] shrink-0 items-center justify-center 
-      sticky top-0 z-50 bg-white    px-6 relative">
+      <div className="flex h-[72px] shrink-0 items-center justify-center sticky top-0 z-50 bg-white dark:bg-zinc-950 px-6 relative border-b border-zinc-100 dark:border-zinc-800/60">
+        {/* Mobile Back Arrow (left side) */}
+        <button 
+          onClick={onClose} 
+          aria-label="Back to chat"
+          className="md:hidden absolute left-4 cursor-pointer rounded-full p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        >
+          <ArrowLeft size={20} />
+        </button>
+
         <h2 className="text-[16px] font-semibold text-zinc-700 dark:text-zinc-200">Contact Info</h2>
-        <button onClick={onClose} className="absolute right-4 cursor-pointer rounded-full p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 transition-colors">
+
+        {/* Desktop Close X (right side) */}
+        <button 
+          onClick={onClose} 
+          aria-label="Close contact info"
+          className="hidden md:flex absolute right-4 cursor-pointer rounded-full p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 transition-colors"
+        >
           <X size={20} />
         </button>
       </div>

@@ -1,4 +1,4 @@
-﻿import Conversation from '../models/Conversation.js';
+import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
 import { getReceiverSocketId, io } from '../sockets/socket.js';
 import cloudinary from '../config/cloudinary.js';
@@ -44,6 +44,7 @@ export const sendMessage = async (req, res) => {
       content,
       image: imageUrl,
       replyTo: replyTo || null,
+      readBy: [senderId], // Sender has already read their own message
     });
 
     if (newMessage) {
@@ -61,19 +62,24 @@ export const sendMessage = async (req, res) => {
       }
     ]);
 
+    const messagePayload = {
+      ...newMessage.toObject(),
+      conversationType: conversation.isGroup ? 'group' : 'direct',
+    };
+
     if (conversation.isGroup) {
       conversation.participants.forEach(participantId => {
         if (participantId.toString() !== senderId.toString()) {
           const socketId = getReceiverSocketId(participantId.toString());
           if (socketId) {
-            io.to(socketId).emit('receive_message', newMessage);
+            io.to(socketId).emit('receive_message', messagePayload);
           }
         }
       });
     } else {
       const receiverSocketId = getReceiverSocketId(receiverId);
       if (receiverSocketId) {
-        io.to(receiverSocketId).emit('receive_message', newMessage);
+        io.to(receiverSocketId).emit('receive_message', messagePayload);
       }
     }
 
@@ -102,6 +108,12 @@ export const getMessages = async (req, res) => {
       return res.status(200).json({ success: true, data: [] });
     }
 
+    // Automatically mark unread messages as read by the user opening the chat
+    await Message.updateMany(
+      { conversation: conversation._id, readBy: { $ne: senderId } },
+      { $addToSet: { readBy: senderId } }
+    );
+
     const messages = await Message.find({ conversation: conversation._id })
       .sort({ createdAt: 1 })
       .populate('sender', 'fullName username profilePicture')
@@ -118,6 +130,32 @@ export const getMessages = async (req, res) => {
   }
 };
 
+export const markMessagesAsRead = async (req, res) => {
+  try {
+    const { id: targetId } = req.params;
+    const userId = req.user._id;
+
+    let conversation = await Conversation.findById(targetId);
+    if (!conversation) {
+      conversation = await Conversation.findOne({
+        isGroup: false,
+        participants: { $all: [userId, targetId] },
+      });
+    }
+
+    if (conversation) {
+      await Message.updateMany(
+        { conversation: conversation._id, readBy: { $ne: userId } },
+        { $addToSet: { readBy: userId } }
+      );
+    }
+
+    res.status(200).json({ success: true, message: 'Messages marked as read' });
+  } catch (error) {
+    console.error('Error in markMessagesAsRead:', error.message);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
 
 export const togglePinMessage = async (req, res) => {
   try {
@@ -160,4 +198,3 @@ export const togglePinMessage = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-

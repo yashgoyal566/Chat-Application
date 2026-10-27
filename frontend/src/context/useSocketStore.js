@@ -10,7 +10,11 @@ export const useSocketStore = create((set, get) => ({
     const authUser = useAuthStore.getState().authUser;
     if (!authUser) return;
 
-    const socket = io('http://localhost:3002', {
+    const SOCKET_URL = import.meta.env.MODE === 'development'
+      ? 'http://localhost:3002'
+      : (import.meta.env.VITE_BACKEND_URL || 'https://chat-application-1-brgc.onrender.com');
+
+    const socket = io(SOCKET_URL, {
       query: { userId: authUser._id },
     });
 

@@ -16,7 +16,7 @@ dotenv.config();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', process.env.CLIENT_URL],
+  origin: true,
   credentials: true
 }));
 app.use(express.json({ limit: "50mb" }));

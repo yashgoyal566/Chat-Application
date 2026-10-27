@@ -1,6 +1,6 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { axiosInstance } from './useAuthStore';
+import { axiosInstance, useAuthStore } from './useAuthStore';
 import toast from 'react-hot-toast';
 import { useSocketStore } from './useSocketStore';
 
@@ -14,40 +14,70 @@ export const useChatStore = create(persist((set, get) => ({
   isUsersLoading: false,
   isMessagesLoading: false,
 
-  // for unread message counts
-   unreadCounts: {}, // Format will be { "userId1": 2, "userId2": 5 }
-  // Call this when a message arrives from someone you aren't currently chatting with
-  incrementUnread: (userId) => {
+  // unread message counts: { "userIdOrGroupId": number }
+  unreadCounts: {},
+
+  // Increment badge when message arrives from inactive chat
+  incrementUnread: (id) => {
     set((state) => ({
       unreadCounts: {
         ...state.unreadCounts,
-        [userId]: (state.unreadCounts[userId] || 0) + 1
-      }
-    }));
-  },
-  // Call this when you click on a user's chat to mark them as read
-  clearUnread: (userId) => {
-    set((state) => ({
-      unreadCounts: {
-        ...state.unreadCounts,
-        [userId]: 0
+        [id]: (state.unreadCounts[id] || 0) + 1
       }
     }));
   },
 
-
+  // Clear unread badge locally and sync with backend
+  clearUnread: async (id) => {
+    set((state) => ({
+      unreadCounts: {
+        ...state.unreadCounts,
+        [id]: 0
+      }
+    }));
+    try {
+      await axiosInstance.put(`/messages/read/${id}`);
+    } catch (err) {
+      console.error("Error marking messages as read:", err);
+    }
+  },
 
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
+      const authUser = useAuthStore.getState().authUser;
       const [usersRes, convosRes] = await Promise.all([
         axiosInstance.get('/users'),
         axiosInstance.get('/groups/conversations')
       ]);
-      set({ users: usersRes.data.data, conversations: convosRes.data.data });
+
+      const users = usersRes.data.data || [];
+      const conversations = convosRes.data.data || [];
+
+      // Build initial unread counts from MongoDB conversations
+      const initialUnreads = {};
+      conversations.forEach((c) => {
+        if (c.unreadCount && c.unreadCount > 0) {
+          if (c.isGroup) {
+            initialUnreads[c._id] = c.unreadCount;
+          } else {
+            const otherUser = c.participants?.find((p) => (p._id || p)?.toString() !== authUser?._id?.toString());
+            if (otherUser) {
+              const otherId = otherUser._id || otherUser;
+              initialUnreads[otherId] = c.unreadCount;
+            }
+          }
+        }
+      });
+
+      set({ 
+        users, 
+        conversations, 
+        unreadCounts: initialUnreads,
+        isUsersLoading: false 
+      });
     } catch (error) {
       toast.error('Failed to get data');
-    } finally {
       set({ isUsersLoading: false });
     }
   },
@@ -57,6 +87,13 @@ export const useChatStore = create(persist((set, get) => ({
     try {
       const res = await axiosInstance.get(`/messages/${targetId}`);
       set({ messages: res.data.data });
+      // Opening the chat also clears the unread count in store
+      set((state) => ({
+        unreadCounts: {
+          ...state.unreadCounts,
+          [targetId]: 0
+        }
+      }));
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to get messages');
     } finally {
@@ -70,17 +107,17 @@ export const useChatStore = create(persist((set, get) => ({
       const payload = { ...data, replyTo: replyingTo?._id || null };
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, payload);
       
-        const updatedMsg = res.data.data;
-        set((state) => {
-          const updatedConvos = state.conversations.map(c => {
-            if (c._id === updatedMsg.conversation) {
-              return { ...c, lastMessage: updatedMsg };
-            }
-            return c;
-          });
-       
-          return { messages: [...state.messages, updatedMsg], replyingTo: null, conversations: updatedConvos };
+      const updatedMsg = res.data.data;
+      set((state) => {
+        const updatedConvos = state.conversations.map(c => {
+          if (c._id === updatedMsg.conversation) {
+            return { ...c, lastMessage: updatedMsg };
+          }
+          return c;
         });
+     
+        return { messages: [...state.messages, updatedMsg], replyingTo: null, conversations: updatedConvos };
+      });
       return true;
 
     } catch (error) {
@@ -99,11 +136,14 @@ export const useChatStore = create(persist((set, get) => ({
     }
   },
 
-    listenToMessages: () => {
+  listenToMessages: () => {
     const socket = useSocketStore.getState().socket;
     if (!socket) return;
 
-        socket.on("message_updated", (updatedData) => {
+    socket.off("receive_message");
+    socket.off("message_updated");
+
+    socket.on("message_updated", (updatedData) => {
       set((state) => ({
         messages: state.messages.map((msg) => 
           msg._id === updatedData.messageId 
@@ -117,26 +157,34 @@ export const useChatStore = create(persist((set, get) => ({
       const { selectedUser, incrementUnread } = get();
       
       const isForGroup = selectedUser?.isGroup && newMessage.conversation === selectedUser?._id;
-      // Handle the case where sender is just an ID string or an object with _id
       const senderId = typeof newMessage.sender === 'object' ? newMessage.sender?._id : newMessage.sender;
       const isFromUser = !selectedUser?.isGroup && senderId === selectedUser?._id;
       const isForActiveChat = isForGroup || isFromUser;
 
       if (isForActiveChat) {
         set((state) => ({ messages: [...state.messages, newMessage] }));
+        const targetId = isForGroup ? newMessage.conversation : senderId;
+        if (targetId) {
+          axiosInstance.put(`/messages/read/${targetId}`).catch(() => {});
+        }
       } else {
         const badgeId = newMessage.conversationType === 'group' ? newMessage.conversation : senderId;
         if (badgeId) incrementUnread(badgeId);
       }
       
       set((state) => {
+        let found = false;
         const updatedConvos = state.conversations.map(c => {
           if (c._id === newMessage.conversation) {
+            found = true;
             return { ...c, lastMessage: newMessage };
           }
           return c;
         });
-        return { conversations: updatedConvos};
+        if (!found) {
+          get().getUsers();
+        }
+        return { conversations: updatedConvos };
       });
     });
   },
@@ -145,17 +193,15 @@ export const useChatStore = create(persist((set, get) => ({
     const socket = useSocketStore.getState().socket;
     if (!socket) return;
     socket.off("receive_message");
+    socket.off("message_updated");
   },
 
-  
   setSelectedUser: (user) => set({ selectedUser: user, replyingTo: null }),
   setReplyingTo: (message) => set({ replyingTo: message }),
   
   togglePinMessage: async (messageId) => {
     try {
       const res = await axiosInstance.put(`/messages/${messageId}/pin`);
-      
-      // Safety check
       const pinnedState = res?.data?.data?.isPinned || false;
       
       set((state) => ({
@@ -175,6 +221,7 @@ export const useChatStore = create(persist((set, get) => ({
       toast.error(`Failed: ${errMsg}`);
     }
   },
+  
   setDraft: (userId, text) => set((state) => {
     const drafts = { ...state.drafts };
     if (text) {

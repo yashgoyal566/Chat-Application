@@ -1,4 +1,5 @@
-﻿import Conversation from '../models/Conversation.js';
+import Conversation from '../models/Conversation.js';
+import Message from '../models/Message.js';
 
 export const createGroup = async (req, res) => {
   try {
@@ -29,10 +30,26 @@ export const getConversations = async (req, res) => {
   try {
     const userId = req.user._id;
     const conversations = await Conversation.find({ participants: userId })
-      .populate('participants', '-password').populate('lastMessage')
-      .sort({ updatedAt: -1 });
+      .populate('participants', '-password')
+      .populate('lastMessage')
+      .sort({ updatedAt: -1 })
+      .lean();
 
-    res.status(200).json({ success: true, data: conversations });
+    const conversationsWithUnread = await Promise.all(
+      conversations.map(async (convo) => {
+        const unreadCount = await Message.countDocuments({
+          conversation: convo._id,
+          sender: { $ne: userId },
+          readBy: { $ne: userId },
+        });
+        return {
+          ...convo,
+          unreadCount,
+        };
+      })
+    );
+
+    res.status(200).json({ success: true, data: conversationsWithUnread });
   } catch (error) {
     console.error('Error in getConversations:', error.message);
     res.status(500).json({ success: false, message: 'Internal Server Error' });
