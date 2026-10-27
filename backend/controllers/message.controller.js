@@ -83,13 +83,7 @@ export const sendMessage = async (req, res) => {
     }
 
     targetIds.forEach(targetId => {
-      // Direct emit to the user's room!
       io.to(targetId).emit('receive_message', messagePayload);
-      // Fallback emit to any specific socket ID
-      const directSocketId = getReceiverSocketId(targetId);
-      if (directSocketId) {
-        io.to(directSocketId).emit('receive_message', messagePayload);
-      }
     });
 
     res.status(201).json({ success: true, data: newMessage });

@@ -4,6 +4,8 @@ import { axiosInstance, useAuthStore } from './useAuthStore';
 import toast from 'react-hot-toast';
 import { useSocketStore } from './useSocketStore';
 
+const processedMessageIds = new Set();
+
 export const useChatStore = create(persist((set, get) => ({
   messages: [],
   users: [],
@@ -154,6 +156,14 @@ export const useChatStore = create(persist((set, get) => ({
     });
 
     socket.on("receive_message", (newMessage) => {
+      if (!newMessage?._id) return;
+      if (processedMessageIds.has(newMessage._id)) return;
+      processedMessageIds.add(newMessage._id);
+      if (processedMessageIds.size > 500) {
+        const first = processedMessageIds.values().next().value;
+        processedMessageIds.delete(first);
+      }
+
       const { selectedUser, incrementUnread } = get();
       
       const isForGroup = selectedUser?.isGroup && (
@@ -172,7 +182,10 @@ export const useChatStore = create(persist((set, get) => ({
       const isForActiveChat = isForGroup || isFromUser;
 
       if (isForActiveChat) {
-        set((state) => ({ messages: [...state.messages, newMessage] }));
+        set((state) => {
+          if (state.messages.some(m => m._id === newMessage._id)) return state;
+          return { messages: [...state.messages, newMessage] };
+        });
         const targetId = isForGroup 
           ? (newMessage.conversation?._id || newMessage.conversation)?.toString() 
           : senderId?.toString();
