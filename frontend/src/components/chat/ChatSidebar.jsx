@@ -30,7 +30,7 @@ export default function ChatSidebar() {
       lastMessage: c.lastMessage
     })),
     ...users.map(u => {
-      const convo = conversations.find(c => !c.isGroup && c.participants.some(p => p._id === u._id));
+      const convo = conversations.find(c => !c.isGroup && c.participants.some(p => (p?._id || p)?.toString() === u?._id?.toString()));
       return {
         ...u,
         isGroup: false,

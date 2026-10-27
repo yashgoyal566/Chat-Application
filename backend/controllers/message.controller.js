@@ -67,21 +67,26 @@ export const sendMessage = async (req, res) => {
       conversationType: conversation.isGroup ? 'group' : 'direct',
     };
 
-    if (conversation.isGroup) {
+    const targetSocketIds = new Set();
+    
+    if (conversation.participants && conversation.participants.length > 0) {
       conversation.participants.forEach(participantId => {
-        if (participantId.toString() !== senderId.toString()) {
-          const socketId = getReceiverSocketId(participantId.toString());
-          if (socketId) {
-            io.to(socketId).emit('receive_message', messagePayload);
-          }
+        const pIdStr = (participantId._id || participantId).toString();
+        if (pIdStr !== senderId.toString()) {
+          const socketId = getReceiverSocketId(pIdStr);
+          if (socketId) targetSocketIds.add(socketId);
         }
       });
-    } else {
-      const receiverSocketId = getReceiverSocketId(receiverId);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('receive_message', messagePayload);
-      }
     }
+
+    if (!conversation.isGroup && receiverId && receiverId.toString() !== senderId.toString()) {
+      const directSocketId = getReceiverSocketId(receiverId.toString());
+      if (directSocketId) targetSocketIds.add(directSocketId);
+    }
+
+    targetSocketIds.forEach(socketId => {
+      io.to(socketId).emit('receive_message', messagePayload);
+    });
 
     res.status(201).json({ success: true, data: newMessage });
   } catch (error) {

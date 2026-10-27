@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { io } from 'socket.io-client';
 import { useAuthStore } from './useAuthStore';
 
@@ -9,6 +9,12 @@ export const useSocketStore = create((set, get) => ({
   connectSocket: () => {
     const authUser = useAuthStore.getState().authUser;
     if (!authUser) return;
+
+    if (get().socket?.connected) return;
+
+    if (get().socket) {
+      get().socket.disconnect();
+    }
 
     const getSocketUrl = () => {
       if (import.meta.env.MODE === 'development') {
@@ -25,21 +31,29 @@ export const useSocketStore = create((set, get) => ({
 
     const socket = io(SOCKET_URL, {
       query: { userId: authUser._id },
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
     });
 
     socket.on('connect', () => {
-      console.log('Socket connected');
+      console.log('Socket connected successfully:', socket.id);
     });
 
     socket.on('getOnlineUsers', (users) => {
       set({ onlineUsers: users });
     });
 
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
+    });
+
     set({ socket });
   },
 
   disconnectSocket: () => {
-    if (get().socket?.connected) {
+    if (get().socket) {
       get().socket.disconnect();
       set({ socket: null });
     }

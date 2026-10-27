@@ -156,26 +156,41 @@ export const useChatStore = create(persist((set, get) => ({
     socket.on("receive_message", (newMessage) => {
       const { selectedUser, incrementUnread } = get();
       
-      const isForGroup = selectedUser?.isGroup && newMessage.conversation === selectedUser?._id;
-      const senderId = typeof newMessage.sender === 'object' ? newMessage.sender?._id : newMessage.sender;
-      const isFromUser = !selectedUser?.isGroup && senderId === selectedUser?._id;
+      const isForGroup = selectedUser?.isGroup && (
+        (newMessage.conversation?._id || newMessage.conversation)?.toString() === selectedUser?._id?.toString()
+      );
+      
+      const senderId = typeof newMessage.sender === 'object' 
+        ? (newMessage.sender?._id || newMessage.sender) 
+        : newMessage.sender;
+      
+      const isFromUser = !selectedUser?.isGroup && (
+        senderId?.toString() === selectedUser?._id?.toString() ||
+        (newMessage.conversation?._id || newMessage.conversation)?.toString() === selectedUser?._id?.toString()
+      );
+      
       const isForActiveChat = isForGroup || isFromUser;
 
       if (isForActiveChat) {
         set((state) => ({ messages: [...state.messages, newMessage] }));
-        const targetId = isForGroup ? newMessage.conversation : senderId;
+        const targetId = isForGroup 
+          ? (newMessage.conversation?._id || newMessage.conversation)?.toString() 
+          : senderId?.toString();
         if (targetId) {
           axiosInstance.put(`/messages/read/${targetId}`).catch(() => {});
         }
       } else {
-        const badgeId = newMessage.conversationType === 'group' ? newMessage.conversation : senderId;
+        const badgeId = newMessage.conversationType === 'group' 
+          ? (newMessage.conversation?._id || newMessage.conversation)?.toString() 
+          : senderId?.toString();
         if (badgeId) incrementUnread(badgeId);
       }
       
       set((state) => {
         let found = false;
+        const newConvoId = (newMessage.conversation?._id || newMessage.conversation)?.toString();
         const updatedConvos = state.conversations.map(c => {
-          if (c._id === newMessage.conversation) {
+          if (c._id?.toString() === newConvoId) {
             found = true;
             return { ...c, lastMessage: newMessage };
           }
