@@ -23,12 +23,14 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   connectDB();
   console.log(`Server is running on port ${PORT}`);
 });

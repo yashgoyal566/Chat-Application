@@ -2,8 +2,20 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+const getBaseUrl = () => {
+  if (import.meta.env.MODE === 'development') {
+    return 'http://localhost:3002/api';
+  }
+  const envUrl = import.meta.env.VITE_BACKEND_URL;
+  if (envUrl) {
+    const cleanUrl = envUrl.replace(/\/+$/, '');
+    return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+  }
+  return 'https://chat-application-1-brgc.onrender.com/api';
+};
+
 export const axiosInstance = axios.create({
-  baseURL: 'http://localhost:3002/api',
+  baseURL: getBaseUrl(),
   withCredentials: true,
 });
 
