@@ -18,7 +18,7 @@ export default function ChatLayout() {
   }, [listenToMessages, stopListeningToMessages, socket]);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+    <div className="flex h-screen h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 fixed inset-0">
       {/* Sidebar Navigation (Desktop / Tablet only) */}
       <nav className="hidden md:flex flex-col items-center justify-between border-r border-zinc-200 bg-white py-4 dark:border-zinc-800 dark:bg-zinc-900 shrink-0 w-16">
         <div className="flex flex-col gap-4">
@@ -38,12 +38,12 @@ export default function ChatLayout() {
       </nav> 
 
       {/* Chat List (Left Pane) */}
-      <aside className={`flex flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shrink-0 flex-1 md:flex-none md:w-[320px] lg:w-[380px] ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
+      <aside className={`flex flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shrink-0 flex-1 md:flex-none md:w-[320px] lg:w-[380px] h-full overflow-hidden ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
         <ChatSidebar />
       </aside>
 
       {/* Main Chat Area */}
-      <main className={`flex flex-col flex-1 bg-zinc-50 dark:bg-zinc-950 min-w-0 ${!selectedUser ? 'hidden md:flex' : 'flex'}`}>
+      <main className={`flex flex-col flex-1 bg-zinc-50 dark:bg-zinc-950 min-w-0 h-full overflow-hidden ${!selectedUser ? 'hidden md:flex' : 'flex'}`}>
         {!selectedUser ? (
           <div className="flex h-full flex-col items-center justify-center text-center px-4">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">

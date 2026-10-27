@@ -234,7 +234,7 @@ export default function ChatWindow() {
       }}
     >
       {/* Header */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-zinc-200 bg-white/80 px-4 py-3 md:px-6 md:py-4 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/80 transition-colors">
+      <header className="sticky top-0 z-20 flex shrink-0 items-center gap-3 border-b border-zinc-200 bg-white/90 px-4 py-3 md:px-6 md:py-4 backdrop-blur-md dark:border-zinc-800/60 dark:bg-zinc-950/90 transition-colors">
         {/* Mobile Back Button */}
         <button 
           onClick={() => setSelectedUser(null)}
@@ -272,7 +272,7 @@ export default function ChatWindow() {
 
       {/* Messages */}
             {/* Wrapper for Banner and Messages to prevent layout shift */}
-      <div className="flex-1 relative flex flex-col overflow-hidden">
+      <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
         
         {/* Pinned Messages Banner - Telegram/WhatsApp Style */}
         {(() => {
@@ -342,7 +342,7 @@ export default function ChatWindow() {
         })()}
 
         {/* Messages Container (pt-16 ensures top messages aren't hidden by absolute banner) */}
-        <div className="flex-1 overflow-y-auto px-6 pt-16 pb-24 ">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-16 pb-3">
         {isMessagesLoading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
@@ -511,11 +511,10 @@ export default function ChatWindow() {
           </div>
         )}
       </div>
-
       </div>
 
-        {/* Input (Floating) */}
-        <div className="absolute bottom-0 left-0 w-full p-4 pb-6 z-10">
+        {/* Input (Sticky Bottom of Chat Column) */}
+        <div className="shrink-0 w-full px-3 py-2 md:px-4 md:py-3 z-10 bg-transparent">
         <AnimatePresence>
           {replyingTo && (
             <motion.div 
